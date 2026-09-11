@@ -1,3 +1,4 @@
+```text
 Maxwell
 Network Monitoring / Preprocessing
         │
@@ -20,6 +21,7 @@ Backend / Database / API
         ▼
 Terry
 Dashboard / Alerts
+```
 
 
 # Detection Interface Specification
@@ -47,7 +49,7 @@ detection subsystem.
 | src_ip | str | Source IP address |
 | dest_ip | str | Destination IP address |
 | protocol | str | Network protocol |
-| port | int | Relevant network/service port |
+| port | Optional[int] | Relevant network/service port; absent for non-port-based protocols (for example, ICMP) |
 | payload_size | int | Size of the network payload |
 
 Current implementation:

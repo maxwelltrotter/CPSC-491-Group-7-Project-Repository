@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 
 @dataclass
@@ -14,5 +15,5 @@ class NetworkEvent:
     src_ip: str
     dest_ip: str
     protocol: str
-    port: int
+    port: Optional[int]
     payload_size: int
