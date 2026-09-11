@@ -290,3 +290,6 @@ Sprint 1 establishes the frontend requirements and integration expectations need
 before implementation begins. This planning will guide the frontend work in later
 sprints and provide clear interfaces between the frontend, backend, network-monitoring,
 and detection components.
+
+
+The AI-IDS will be implemented in Python and run locally on the user’s computer. The frontend will provide a desktop user interface for viewing network activity, alerts, logs, threat severity, and response actions. The frontend will receive data from local backend services through defined interfaces and will not directly perform packet capture, threat detection, or firewall modification.
