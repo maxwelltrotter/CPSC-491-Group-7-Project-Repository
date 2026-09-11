@@ -25,13 +25,13 @@ class RawEvent:
         self.payload_size = payload_size
     def __dict__(self):
         return {
-            self.timestamp,
-            self.source_ip,
-            self.destination_ip,
-            self.source_port,
-            self.destination_port,
-            self.protocol,
-            self.payload_size
+            "timestamp": self.timestamp,
+            "source_ip": self.source_ip,
+            "destination_ip": self.destination_ip,
+            "source_port": self.source_port,
+            "destination_port": self.destination_port,
+            "protocol": self.protocol,
+            "payload_size": self.payload_size
         }
 
 def main():
