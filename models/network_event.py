@@ -15,5 +15,6 @@ class NetworkEvent:
     src_ip: str
     dest_ip: str
     protocol: str
-    port: Optional[int]
+    source_port: Optional[int]
+    destination_port: Optional[int]
     payload_size: int
