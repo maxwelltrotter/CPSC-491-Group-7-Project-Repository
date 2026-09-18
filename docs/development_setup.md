@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **Git**
-- **Python 3.11**
+- **Python 3.12**
 - A terminal or IDE
 - Operating-system permissions required for future packet capture
 
@@ -17,13 +17,13 @@ cd CPSC-491-Group-7-Project-Repository
 ## 1. Create Virtual Environment
 for Windows:
 ```
-py -3.11 -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\activate
 ```
 
 for macOS/Linux:
 ```
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 ```
 
