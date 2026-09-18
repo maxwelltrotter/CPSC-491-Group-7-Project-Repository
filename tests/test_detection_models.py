@@ -11,7 +11,8 @@ def test_network_event_creation():
         src_ip="192.168.1.10",
         dest_ip="192.168.1.20",
         protocol="TCP",
-        port=443,
+        source_port=51542,
+        destination_port=443,
         payload_size=512,
     )
 
@@ -19,7 +20,8 @@ def test_network_event_creation():
     assert event.src_ip == "192.168.1.10"
     assert event.dest_ip == "192.168.1.20"
     assert event.protocol == "TCP"
-    assert event.port == 443
+    assert event.source_port == 51542
+    assert event.destination_port == 443
     assert event.payload_size == 512
 
 
@@ -42,19 +44,21 @@ def test_detection_result_creation():
     assert result.confidence is None
 
 
-def test_network_event_without_port():
+def test_network_event_without_ports():
     event = NetworkEvent(
         event_id="event-003",
         timestamp=datetime.now(),
         src_ip="10.0.0.1",
         dest_ip="10.0.0.2",
         protocol="ICMP",
-        port=None,
+        source_port=None,
+        destination_port=None,
         payload_size=64,
     )
 
     assert event.protocol == "ICMP"
-    assert event.port is None
+    assert event.source_port is None
+    assert event.destination_port is None
 
 
 def test_clean_detection_result():
