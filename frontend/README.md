@@ -293,3 +293,32 @@ and detection components.
 
 
 The AI-IDS will be implemented in Python and run locally on the user’s computer. The frontend will provide a desktop user interface for viewing network activity, alerts, logs, threat severity, and response actions. The frontend will receive data from local backend services through defined interfaces and will not directly perform packet capture, threat detection, or firewall modification.
+
+## Sprint 1 Frontend Skeleton - Run and Test
+
+The Sprint 1 frontend skeleton is a local Tkinter application and is intentionally isolated from unfinished backend, monitoring, detection, and real firewall functionality.
+
+### Run the frontend
+
+From the repository root:
+
+```bash
+python -m frontend
+```
+
+This launches the Tkinter application through `frontend/__main__.py`.
+
+### Run the mock service tests
+
+From the repository root:
+
+```bash
+python -m unittest frontend.tests.test_mock_ids_service
+```
+
+The test suite uses Python's built-in `unittest` module. No additional test dependency is required.
+
+### Current integration boundary
+
+The Sprint 1 frontend uses `frontend/services/mock_ids_service.py` and synthetic data in `frontend/data/sample_alerts.json` so the UI can be developed and tested without depending on unfinished backend components. Real monitoring, AI/ML detection, alert generation, and firewall blocking are outside this frontend-only scope.
+
