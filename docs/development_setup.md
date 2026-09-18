@@ -41,7 +41,7 @@ Update local settings if necessary.
 
 ## 4. Verify the Environment
 ```
-python scripts/verify_environment.py
+scripts/verify_environment.py
 pytest
 ```
 
