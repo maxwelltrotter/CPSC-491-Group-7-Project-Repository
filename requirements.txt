@@ -1,0 +1,6 @@
+# requirements.txt
+
+# This file lists the Python dependencies for the project.
+scapy
+python-dotenv
+pytest
