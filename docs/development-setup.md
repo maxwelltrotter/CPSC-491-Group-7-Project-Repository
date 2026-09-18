@@ -2,16 +2,16 @@
 
 ## Prerequisites
 
-- Git
-- Python 3.11
+- **Git**
+- **Python 3.11**
 - A terminal or IDE
 - Operating-system permissions required for future packet capture
 
 ## Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd <project-directory>
+git clone https://github.com/maxwelltrotter/CPSC-491-Group-7-Project-Repository.git
+cd CPSC-491-Group-7-Project-Repository
 ```
 
 ## 1. Create Virtual Environment
