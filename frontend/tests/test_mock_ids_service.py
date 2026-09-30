@@ -33,6 +33,12 @@ class MockIDSServiceTests(unittest.TestCase):
 
         for alert in self.service.get_alerts():
             self.assertIn(alert["severity"], supported_severities)
+    def test_alert_confidence_values_are_numeric_and_in_range(self) -> None:
+        for alert in self.service.get_alerts():
+            confidence = alert["confidence"]
+            self.assertIsInstance(confidence, (int, float))
+            self.assertGreaterEqual(confidence, 0)
+            self.assertLessEqual(confidence, 1)
 
     def test_block_and_unblock_are_mock_only_and_update_state(self) -> None:
         ip_address = "203.0.113.99"
@@ -55,6 +61,13 @@ class MockIDSServiceTests(unittest.TestCase):
         duplicate_result = self.service.block_ip(existing_ip)
         self.assertFalse(duplicate_result["success"])
         self.assertEqual(self.service.get_banned_ips(), initial_banned_ips)
+    def test_unblock_unknown_ip_fails_without_changing_state(self) -> None:
+        initial_banned_ips = self.service.get_banned_ips()
+
+        result = self.service.unblock_ip("203.0.113.200")
+
+        self.assertFalse(result["success"])
+        self.assertEqual(self.service.get_banned_ips(), initial_banned_ips)
 
     def test_dashboard_summary_matches_mock_state(self) -> None:
         summary = self.service.get_dashboard_summary()
@@ -67,6 +80,15 @@ class MockIDSServiceTests(unittest.TestCase):
 
         for severity in ("Normal", "Low", "Medium", "High"):
             self.assertEqual(summary["severity_counts"][severity], expected_counts.get(severity, 0))
+
+    def test_getters_return_defensive_copies(self) -> None:
+        alerts = self.service.get_alerts()
+        alerts[0]["severity"] = "Changed"
+        self.assertNotEqual(self.service.get_alerts()[0]["severity"], "Changed")
+
+        banned_ips = self.service.get_banned_ips()
+        banned_ips[0]["ip_address"] = "203.0.113.250"
+        self.assertNotEqual(self.service.get_banned_ips()[0]["ip_address"], "203.0.113.250")
 
 
 if __name__ == "__main__":
