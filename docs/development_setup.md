@@ -11,7 +11,7 @@
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/maxwelltrotter/CPSC-491-Group-7-Project-Repository.git
+git clone https://github.com/[BRANCH-NAME]/CPSC-491-Group-7-Project-Repository.git
 cd CPSC-491-Group-7-Project-Repository
 ```
 
