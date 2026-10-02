@@ -1,0 +1,7 @@
+{
+    "interface": null,
+    "filter": "",
+    "timeout": null,
+    "packet_count": 0,
+    "log_file": "logs/packet_capture.log"
+}
