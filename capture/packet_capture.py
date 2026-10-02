@@ -3,22 +3,31 @@
 # and destination IP addresses, ports, and protocols. Captured data is then written to a log file.
 
 from datetime import datetime
-from scapy.all import sniff, IP, TCP, UDP, ICMP
+import argparse
+
+from scapy.all import sniff, IP, IPv6, TCP, UDP, ICMP
 
 # Npcap is a required system-level dependency on Windows 11; installation may be required for packet capture
 
-def process_packet(packet):
-    """Display basic packet info from captured traffic"""
+# Function which processes packets and passes results downstream
+def process_packet(packet, downstream_handler=None):
+    """Display packet details and pass the packet downstream."""
 
-    # Record captured timestamp
+    # Record captured timestamp and packet length
     timestamp = datetime.now().isoformat(timespec='milliseconds')
+    packet_size = len(packet)
 
-    # If packet has IPv4 layer, extract packet information
+    # Set defaults so every packet type can be handled safely.
+    source_ip = "N/A"
+    destination_ip = "N/A"
+    protocol = "Non-IP"
+
+    # Extract network-layer information
+    # Handling IP and IPv6 packets
     if IP in packet:
         source_ip = packet[IP].src
         destination_ip = packet[IP].dst
 
-        # Extract protocol information
         if TCP in packet:
             protocol = "TCP"
         elif UDP in packet:
@@ -26,31 +35,20 @@ def process_packet(packet):
         elif ICMP in packet:
             protocol = "ICMP"
         else:
-             protocol = f"IPv4 protocol number {packet[IP].proto}"
+            protocol = f"IPv4 protocol number {packet[IP].proto}"
 
-    # If packet has IPv6 layer
     elif IPv6 in packet:
         source_ip = packet[IPv6].src
         destination_ip = packet[IPv6].dst
-        print("-" * 60)
-        print(f"Timestamp:       {timestamp}")
-        print(f"Source IP:       {source_ip}")
-        print(f"Destination IP:  {destination_ip}")
-        print("Protocol:        IPv6")
-        print(f"Packet Size:     {packet_size} bytes")
 
-    # Else if packet has neither:
-    else:
-        print("-" * 60)
-        print(f"Timestamp:       {timestamp}")
-        print("Network Layer:   Non-IP packet")
-        print(f"Packet Size:     {packet_size} bytes")
-        print("Information:     No IPv4 or IPv6 address available")
+        if TCP in packet:
+            protocol = "TCP"
+        elif UDP in packet:
+            protocol = "UDP"
+        else:
+            protocol = "IPv6"
 
-    # Get packet size (bytes)
-    packet_size = len(packet)
-
-    # Print all captured packet info
+    # Display summary for every packet (refactored from previous)
     print("-" * 60)
     print(f"Timestamp:       {timestamp}")
     print(f"Source IP:       {source_ip}")
@@ -58,16 +56,47 @@ def process_packet(packet):
     print(f"Protocol:        {protocol}")
     print(f"Packet Size:     {packet_size} bytes")
 
+    # Pass the original Scapy packet to downstream processing.
+    if downstream_handler is not None:
+        downstream_handler(packet)
 
-def main():
+# Main function continuously captures packerts until interrupt
+def main(interface=None, downstream_handler=None):
+    """Continuously capture packets until interrupted."""
+
     print("Starting packet capture...")
-    print("Capturing 10 packets. Press Ctrl+C to stop early.")
+    print(f"Interface: {interface or 'Scapy default interface'}")
+    print("Capturing continuously. Press Ctrl+C to stop.")
 
-    sniff(prn=process_packet, count=10, store=False)
-    print("Packet capture complete.")
+    try:
+        sniff(
+            iface=interface,
+            prn=lambda packet: process_packet(
+                packet, downstream_handler
+            ),
+            store=False,
+        )
+
+    except KeyboardInterrupt:
+        print("\nStopping packet capture...")
+
+    except Exception as error:
+        print(f"Packet capture error: {error}")
+
+    finally:
+        print("Packet capture complete.")
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Continuous Scapy packet capture"
+    )
+    parser.add_argument(
+        "--interface",
+        default=None,
+        help="Network interface to monitor; uses Scapy's default if omitted",
+    )
+    args = parser.parse_args()
 
-
-
+    # call main
+    main(interface=args.interface)
