@@ -26,12 +26,12 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Run root-level tests (detection & model tests)
-        run: pytest tests/
+        run: python -m pytest tests/ frontend/tests/
 
       - name: Run backend tests
         run: |
           cd backend
-          pytest tests/
+          python -m pytest tests/
 
       - name: Confirm Flask app builds and starts
         run: |
