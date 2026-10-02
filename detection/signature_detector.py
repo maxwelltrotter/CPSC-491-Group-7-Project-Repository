@@ -18,21 +18,35 @@ TELNET_RULE = SignatureRule(
     severity="medium",
 )
 
+FTP_RULE = SignatureRule(
+    name="ftp_destination_port",
+    destination_port=21,
+    threat_type="suspicious_ftp",
+    severity="medium",
+)
+
+SIGNATURE_RULES = (
+    TELNET_RULE,
+    FTP_RULE,
+)
+
 def detect(event: NetworkEvent) -> DetectionResult:
     """Evaluate a network event against the baseline signature rules."""
 
-    if event.destination_port == TELNET_RULE.destination_port:
-        return DetectionResult(
-            event_id=event.event_id,
-            detected=True,
-            detection_method="signature",
-            threat_type=TELNET_RULE.threat_type,
-            severity=TELNET_RULE.severity,
-            confidence=None,
-            timestamp=event.timestamp, 
-        )
+    for rule in SIGNATURE_RULES:
+        if event.destination_port == rule.destination_port:
+            return DetectionResult(
+                event_id=event.event_id,
+                detected=True,
+                detection_method="signature",
+                threat_type=rule.threat_type,
+                severity=rule.severity,
+                confidence=None,
+                timestamp=event.timestamp,
+            )
+
     return DetectionResult(
-        event_id=event.event_id, 
+        event_id=event.event_id,
         detected=False,
         detection_method="signature",
         threat_type=None,

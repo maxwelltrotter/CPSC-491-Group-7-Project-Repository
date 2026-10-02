@@ -52,3 +52,27 @@ def test_nonmatching_destination_port_is_not_detected():
     assert result.confidence is None
     assert result.timestamp == event_timestamp
     
+    
+def test_ftp_destination_port_is_detected():
+    event_timestamp = datetime.now()
+
+    event = NetworkEvent(
+        event_id="event-signature-003",
+        timestamp=event_timestamp,
+        src_ip="192.168.1.10",
+        dest_ip="192.168.1.20",
+        protocol="TCP",
+        source_port=51542,
+        destination_port=21,
+        payload_size=128,
+    )
+
+    result = detect(event)
+
+    assert result.event_id == event.event_id
+    assert result.detected is True
+    assert result.detection_method == "signature"
+    assert result.threat_type == "suspicious_ftp"
+    assert result.severity == "medium"
+    assert result.confidence is None
+    assert result.timestamp == event_timestamp
