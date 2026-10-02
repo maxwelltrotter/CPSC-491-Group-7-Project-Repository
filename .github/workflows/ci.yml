@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install root dependencies (detection / shared models)
+        run: pip install -r requirements.txt
+
+      - name: Install backend dependencies (Flask app)
+        run: pip install -r backend/requirements.txt
+
+      - name: Run root-level tests (detection & model tests)
+        run: python -m pytest tests/ frontend/tests/
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          python -m pytest tests/
+
+      - name: Confirm Flask app builds and starts
+        run: |
+          cd backend
+          python -c "from app import create_app; create_app(); print('Flask app OK')"
+
+      - name: Show build version
+        run: cat VERSION
