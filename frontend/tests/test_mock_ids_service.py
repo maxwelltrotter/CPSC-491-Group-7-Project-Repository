@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from collections import Counter
+from pathlib import Path
 
 from frontend.services.mock_ids_service import MockIDSService
 
@@ -33,6 +36,7 @@ class MockIDSServiceTests(unittest.TestCase):
 
         for alert in self.service.get_alerts():
             self.assertIn(alert["severity"], supported_severities)
+
     def test_alert_confidence_values_are_numeric_and_in_range(self) -> None:
         for alert in self.service.get_alerts():
             confidence = alert["confidence"]
@@ -61,6 +65,7 @@ class MockIDSServiceTests(unittest.TestCase):
         duplicate_result = self.service.block_ip(existing_ip)
         self.assertFalse(duplicate_result["success"])
         self.assertEqual(self.service.get_banned_ips(), initial_banned_ips)
+
     def test_unblock_unknown_ip_fails_without_changing_state(self) -> None:
         initial_banned_ips = self.service.get_banned_ips()
 
@@ -89,6 +94,56 @@ class MockIDSServiceTests(unittest.TestCase):
         banned_ips = self.service.get_banned_ips()
         banned_ips[0]["ip_address"] = "203.0.113.250"
         self.assertNotEqual(self.service.get_banned_ips()[0]["ip_address"], "203.0.113.250")
+
+    def test_get_logs_matches_alert_data_and_expected_shape(self) -> None:
+        alerts = self.service.get_alerts()
+        logs = self.service.get_logs()
+        required_fields = {
+            "timestamp",
+            "event_type",
+            "ip_address",
+            "description",
+            "severity",
+            "action_taken",
+        }
+
+        self.assertEqual(len(logs), len(alerts))
+        for alert, log in zip(alerts, logs):
+            self.assertTrue(required_fields.issubset(log.keys()))
+            self.assertEqual(log["timestamp"], alert["timestamp"])
+            self.assertEqual(log["ip_address"], alert["source_ip"])
+            self.assertEqual(log["description"], alert["description"])
+            self.assertEqual(log["severity"], alert["severity"])
+            self.assertEqual(log["event_type"], "Security Alert")
+            self.assertEqual(log["action_taken"], "Pending review")
+
+    def test_get_settings_returns_expected_shape_and_defensive_copy(self) -> None:
+        settings = self.service.get_settings()
+        required_fields = {
+            "alerts_enabled",
+            "logging_enabled",
+            "network_interface",
+        }
+
+        self.assertTrue(required_fields.issubset(settings.keys()))
+        self.assertIsInstance(settings["alerts_enabled"], bool)
+        self.assertIsInstance(settings["logging_enabled"], bool)
+        self.assertIsInstance(settings["network_interface"], str)
+
+        original_network_interface = settings["network_interface"]
+        settings["network_interface"] = "Changed Interface"
+        self.assertEqual(
+            self.service.get_settings()["network_interface"],
+            original_network_interface,
+        )
+
+    def test_rejects_alert_file_with_non_list_top_level(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_path = Path(temporary_directory) / "alerts.json"
+            data_path.write_text(json.dumps({"alerts": []}), encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                MockIDSService(data_path)
 
 
 if __name__ == "__main__":
