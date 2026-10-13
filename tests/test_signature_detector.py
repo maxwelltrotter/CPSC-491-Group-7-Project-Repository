@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from detection.signature_detector import detect
 from models.network_event import NetworkEvent
 
@@ -74,5 +76,34 @@ def test_ftp_destination_port_is_detected():
     assert result.detection_method == "signature"
     assert result.threat_type == "suspicious_ftp"
     assert result.severity == "medium"
+    assert result.confidence is None
+    assert result.timestamp == event_timestamp
+
+
+@pytest.mark.parametrize(
+    "destination_port",
+    [0, 20, 22, 24, 65535],
+)
+def test_valid_nonmatching_destination_ports(destination_port):
+    event_timestamp = datetime.now()
+
+    event = NetworkEvent(
+        event_id="event-signature-boundary",
+        timestamp=event_timestamp,
+        src_ip="192.168.1.10",
+        dest_ip="192.168.1.20",
+        protocol="TCP",
+        source_port=51542,
+        destination_port=destination_port,
+        payload_size=128,
+    )
+
+    result = detect(event)
+
+    assert result.event_id == event.event_id
+    assert result.detected is False
+    assert result.detection_method == "signature"
+    assert result.threat_type is None
+    assert result.severity is None
     assert result.confidence is None
     assert result.timestamp == event_timestamp
