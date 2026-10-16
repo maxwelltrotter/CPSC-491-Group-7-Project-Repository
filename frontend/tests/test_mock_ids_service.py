@@ -145,6 +145,57 @@ class MockIDSServiceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 MockIDSService(data_path)
 
+    def test_empty_alert_file_produces_empty_frontend_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_path = Path(temporary_directory) / "alerts.json"
+            data_path.write_text("[]", encoding="utf-8")
+
+            service = MockIDSService(data_path)
+
+            self.assertEqual(service.get_alerts(), [])
+            self.assertEqual(service.get_logs(), [])
+            self.assertEqual(service.get_dashboard_summary()["active_alert_count"], 0)
+            self.assertEqual(
+                service.get_dashboard_summary()["severity_counts"],
+                {"Normal": 0, "Low": 0, "Medium": 0, "High": 0},
+            )
+
+    def test_rejects_malformed_alert_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_path = Path(temporary_directory) / "alerts.json"
+            data_path.write_text('[{"alert_id": "A-1"}', encoding="utf-8")
+
+            with self.assertRaises(json.JSONDecodeError):
+                MockIDSService(data_path)
+
+    def test_rejects_alert_entries_missing_required_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_path = Path(temporary_directory) / "alerts.json"
+            data_path.write_text(json.dumps([{"alert_id": "A-1"}]), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "missing required fields"):
+                MockIDSService(data_path)
+
+    def test_rejects_invalid_alert_severity_and_confidence(self) -> None:
+        valid_alert = self.service.get_alerts()[0]
+        invalid_values = (
+            ("severity", "Critical", "unsupported severity"),
+            ("confidence", 1.01, "confidence must be a number between 0 and 1"),
+            ("confidence", True, "confidence must be a number between 0 and 1"),
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_path = Path(temporary_directory) / "alerts.json"
+
+            for field, value, expected_message in invalid_values:
+                with self.subTest(field=field, value=value):
+                    alert = valid_alert.copy()
+                    alert[field] = value
+                    data_path.write_text(json.dumps([alert]), encoding="utf-8")
+
+                    with self.assertRaisesRegex(ValueError, expected_message):
+                        MockIDSService(data_path)
+
 
 if __name__ == "__main__":
     unittest.main()
