@@ -11,6 +11,20 @@ from .ids_service import IDSService
 class MockIDSService(IDSService):
     """Mock IDS service used for frontend development before backend integration."""
 
+    _REQUIRED_ALERT_FIELDS = frozenset(
+        {
+            "alert_id",
+            "timestamp",
+            "source_ip",
+            "threat_type",
+            "severity",
+            "detection_method",
+            "confidence",
+            "description",
+        }
+    )
+    _SUPPORTED_SEVERITIES = frozenset({"Normal", "Low", "Medium", "High"})
+
     def __init__(self, data_path: str | Path | None = None) -> None:
         if data_path is None:
             data_path = Path(__file__).resolve().parent.parent / "data" / "sample_alerts.json"
@@ -35,7 +49,34 @@ class MockIDSService(IDSService):
             data = json.load(file)
         if not isinstance(data, list):
             raise ValueError("sample_alerts.json must contain a JSON array")
+
+        for index, alert in enumerate(data):
+            self._validate_alert(alert, index)
         return data
+
+    @classmethod
+    def _validate_alert(cls, alert: object, index: int) -> None:
+        if not isinstance(alert, dict):
+            raise ValueError(f"alert at index {index} must be a JSON object")
+
+        missing_fields = cls._REQUIRED_ALERT_FIELDS.difference(alert)
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise ValueError(f"alert at index {index} is missing required fields: {missing}")
+
+        severity = alert["severity"]
+        if severity not in cls._SUPPORTED_SEVERITIES:
+            raise ValueError(f"alert at index {index} has unsupported severity: {severity}")
+
+        confidence = alert["confidence"]
+        if (
+            isinstance(confidence, bool)
+            or not isinstance(confidence, (int, float))
+            or not 0 <= confidence <= 1
+        ):
+            raise ValueError(
+                f"alert at index {index} confidence must be a number between 0 and 1"
+            )
 
     def get_dashboard_summary(self) -> dict[str, Any]:
         severity_counts = {"Normal": 0, "Low": 0, "Medium": 0, "High": 0}
