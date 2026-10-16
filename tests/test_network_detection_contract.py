@@ -1,7 +1,5 @@
 from datetime import datetime
 
-from datetime import datetime
-
 from detection.signature_detector import detect
 from models.detection_result import DetectionResult
 from models.network_event import NetworkEvent
