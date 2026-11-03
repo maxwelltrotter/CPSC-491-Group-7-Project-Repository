@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 from frontend.services.mock_ids_service import MockIDSService
@@ -36,7 +37,7 @@ class MockIDSServiceTests(unittest.TestCase):
         for alert in alerts:
             self.assertTrue(required_fields.issubset(alert.keys()))
 
-    def test_review_alert_records_follow_up_and_survives_service_refresh(self) -> None:
+    def test_review_alert_records_follow_up_in_review_history(self) -> None:
         alert_id = self.service.get_alerts()[0]["alert_id"]
 
         review = self.service.review_alert(
@@ -54,7 +55,7 @@ class MockIDSServiceTests(unittest.TestCase):
         self.assertTrue(review["reviewed_at"])
         self.assertEqual(self.service.get_alert_reviews(), [review])
 
-    def test_false_positive_review_closes_alert_without_follow_up(self) -> None:
+    def test_false_positive_review_record_is_closed_without_follow_up(self) -> None:
         alert_id = self.service.get_alerts()[0]["alert_id"]
 
         review = self.service.review_alert(
@@ -67,6 +68,27 @@ class MockIDSServiceTests(unittest.TestCase):
         self.assertEqual(review["status"], "Closed")
         self.assertEqual(review["next_action"], "")
         self.assertEqual(review["owner"], "")
+
+    def test_review_is_a_mock_audit_record_and_does_not_change_alert_state(self) -> None:
+        alerts_before = self.service.get_alerts()
+        summary_before = self.service.get_dashboard_summary()
+        alert_id = alerts_before[0]["alert_id"]
+
+        review = self.service.review_alert(
+            alert_id=alert_id,
+            disposition="Confirmed incident",
+            reason="Synthetic alert retained for investigation.",
+            reviewer="Test reviewer",
+            next_action="Inspect related mock logs.",
+            owner="Test owner",
+        )
+
+        timestamp = datetime.fromisoformat(review["reviewed_at"])
+        self.assertEqual(timestamp.utcoffset(), timezone.utc.utcoffset(timestamp))
+        self.assertEqual(review["status"], "Open")
+        self.assertEqual(review["data_source"], "Mock/Synthetic")
+        self.assertEqual(self.service.get_alerts(), alerts_before)
+        self.assertEqual(self.service.get_dashboard_summary(), summary_before)
 
     def test_review_alert_rejects_missing_required_review_information(self) -> None:
         alert_id = self.service.get_alerts()[0]["alert_id"]
