@@ -6,13 +6,15 @@ from models.network_event import NetworkEvent
 class SignatureRule:
     """Represents a metadata-based signature rule."""
 
-    name:str
+    name: str
+    protocol: str
     destination_port: int
     threat_type: str
     severity: str
 
 TELNET_RULE = SignatureRule(
     name="telnet_destination_port",
+    protocol="TCP",
     destination_port=23,
     threat_type="suspicious_telnet",
     severity="medium",
@@ -20,6 +22,7 @@ TELNET_RULE = SignatureRule(
 
 FTP_RULE = SignatureRule(
     name="ftp_destination_port",
+    protocol="TCP",
     destination_port=21,
     threat_type="suspicious_ftp",
     severity="medium",
@@ -34,7 +37,10 @@ def detect(event: NetworkEvent) -> DetectionResult:
     """Evaluate a network event against the baseline signature rules."""
 
     for rule in SIGNATURE_RULES:
-        if event.destination_port == rule.destination_port:
+        if (
+            event.protocol == rule.protocol
+            and event.destination_port == rule.destination_port
+        ):
             return DetectionResult(
                 event_id=event.event_id,
                 detected=True,
