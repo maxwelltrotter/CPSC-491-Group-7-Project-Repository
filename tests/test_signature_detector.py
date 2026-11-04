@@ -107,3 +107,31 @@ def test_valid_nonmatching_destination_ports(destination_port):
     assert result.severity is None
     assert result.confidence is None
     assert result.timestamp == event_timestamp
+
+@pytest.mark.parametrize(
+    "destination_port",
+    [21, 23],
+)
+def test_udp_traffic_does_not_match_tcp_signature_rules(destination_port):
+    event_timestamp = datetime.now()
+
+    event = NetworkEvent(
+        event_id="event-udp-protocol-mismatch",
+        timestamp=event_timestamp,
+        src_ip="192.0.2.10",
+        dest_ip="192.0.2.20",
+        protocol="UDP",
+        source_port=51542,
+        destination_port=destination_port,
+        payload_size=0,
+    )
+
+    result = detect(event)
+
+    assert result.event_id == event.event_id
+    assert result.detected is False
+    assert result.detection_method == "signature"
+    assert result.threat_type is None
+    assert result.severity is None
+    assert result.confidence is None
+    assert result.timestamp == event_timestamp
