@@ -1,4 +1,7 @@
-from flask import Blueprint, jsonify, request
+from functools import wraps
+
+from flask import Blueprint, g, jsonify, request, current_app
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
@@ -34,6 +37,35 @@ def register():
 
 
 MAX_FAILED_ATTEMPTS = 5
+TOKEN_MAX_AGE = 3600  # one hour, in seconds
+
+
+def make_token(user):
+    serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    return serializer.dumps({"user_id": user.id})
+
+
+def token_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        header = request.headers.get("Authorization", "")
+        if not header.startswith("Bearer "):
+            return jsonify({"error": "Login required."}), 401
+
+        serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        try:
+            data = serializer.loads(header[len("Bearer "):], max_age=TOKEN_MAX_AGE)
+        except BadSignature:
+            return jsonify({"error": "Invalid or expired token."}), 401
+
+        user = db.session.get(User, data.get("user_id"))
+        if user is None:
+            return jsonify({"error": "Invalid or expired token."}), 401
+
+        g.current_user = user
+        return view(*args, **kwargs)
+
+    return wrapper
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -63,4 +95,14 @@ def login():
 
     user.failed_attempts = 0
     db.session.commit()
-    return jsonify({"message": "Login successful.", "username": user.username}), 200
+    return jsonify({
+        "message": "Login successful.",
+        "username": user.username,
+        "access_token": make_token(user),
+    }), 200
+
+
+@auth_bp.route("/me", methods=["GET"])
+@token_required
+def me():
+    return jsonify({"username": g.current_user.username}), 200
