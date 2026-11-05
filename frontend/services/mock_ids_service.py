@@ -102,6 +102,18 @@ class MockIDSService(IDSService):
     def get_alert_reviews(self) -> list[dict[str, Any]]:
         return deepcopy(self._alert_reviews)
 
+    def export_alert_reviews(self, destination: str | Path) -> Path:
+        """Export current mock review records as a clearly labeled evidence file."""
+        export_path = Path(destination)
+        payload = {
+            "data_source": "Mock/Synthetic",
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "persistence_note": "Exported review records are not tamper-resistant audit logs.",
+            "reviews": self.get_alert_reviews(),
+        }
+        export_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return export_path
+
     def review_alert(
         self,
         alert_id: str,

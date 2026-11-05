@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 
@@ -34,6 +35,10 @@ class IDSService(ABC):
         owner: str = "",
     ) -> dict[str, Any]:
         """Record an alert disposition and its required follow-up details."""
+
+    @abstractmethod
+    def export_alert_reviews(self, destination: str | Path) -> Path:
+        """Export review evidence to a user-selected destination."""
 
     @abstractmethod
     def get_logs(self) -> list[dict[str, Any]]:

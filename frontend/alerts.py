@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from .services.ids_service import IDSService
 
@@ -97,10 +97,13 @@ class AlertsFrame(ttk.Frame):
 
         self.review_status_var = tk.StringVar(value="Mock/Synthetic review data only")
         ttk.Button(review_frame, text="Save review", command=self._save_review).grid(
-            row=4, column=3, sticky="e", pady=(6, 0)
+            row=4, column=2, sticky="e", padx=(0, 8), pady=(6, 0)
         )
+        ttk.Button(
+            review_frame, text="Export review history", command=self._export_review_history
+        ).grid(row=4, column=3, sticky="e", pady=(6, 0))
         ttk.Label(review_frame, textvariable=self.review_status_var).grid(
-            row=4, column=0, columnspan=3, sticky="w", pady=(6, 0)
+            row=4, column=0, columnspan=2, sticky="w", pady=(6, 0)
         )
 
         history_frame = ttk.LabelFrame(self, text="Review history", padding=6)
@@ -193,3 +196,28 @@ class AlertsFrame(ttk.Frame):
         self.reason_var.set("")
         self.next_action_var.set("")
         self.owner_var.set("")
+
+    def _export_review_history(self) -> None:
+        reviews = self.service.get_alert_reviews()
+        if not reviews:
+            self.review_status_var.set("There are no review records to export")
+            return
+
+        destination = filedialog.asksaveasfilename(
+            parent=self,
+            title="Export mock alert review history",
+            defaultextension=".json",
+            filetypes=(("JSON files", "*.json"),),
+            initialfile="mock_alert_review_history.json",
+        )
+        if not destination:
+            return
+
+        try:
+            export_path = self.service.export_alert_reviews(destination)
+        except OSError as error:
+            self.review_status_var.set("Review history export failed")
+            messagebox.showerror("Export failed", str(error), parent=self)
+            return
+
+        self.review_status_var.set(f"Mock/Synthetic review evidence exported: {export_path}")

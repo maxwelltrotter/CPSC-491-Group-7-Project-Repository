@@ -141,6 +141,29 @@ class MockIDSServiceTests(unittest.TestCase):
             self.service.get_alert_reviews()[0]["reason"], "Synthetic exercise."
         )
 
+    def test_exported_review_history_is_labeled_and_contains_review_records(self) -> None:
+        alert_id = self.service.get_alerts()[0]["alert_id"]
+        review = self.service.review_alert(
+            alert_id,
+            "Needs investigation",
+            "Synthetic alert needs a follow-up check.",
+            "Test reviewer",
+            next_action="Compare related logs.",
+            owner="Test owner",
+        )
+
+        with workspace_temporary_directory() as temporary_directory:
+            destination = Path(temporary_directory) / "review-evidence.json"
+            returned_path = self.service.export_alert_reviews(destination)
+            exported = json.loads(destination.read_text(encoding="utf-8"))
+
+        timestamp = datetime.fromisoformat(exported["exported_at"])
+        self.assertEqual(returned_path, destination)
+        self.assertEqual(timestamp.utcoffset(), timezone.utc.utcoffset(timestamp))
+        self.assertEqual(exported["data_source"], "Mock/Synthetic")
+        self.assertIn("not tamper-resistant", exported["persistence_note"])
+        self.assertEqual(exported["reviews"], [review])
+
     def test_alert_severity_values_are_supported(self) -> None:
         supported_severities = {"Normal", "Low", "Medium", "High"}
 
