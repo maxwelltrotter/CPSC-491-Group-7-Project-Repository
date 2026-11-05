@@ -182,14 +182,3 @@ def test_converted_normal_tcp_packet_has_no_detection():
     assert result.severity is None
     assert result.confidence is None
     assert result.timestamp == event.timestamp
-
-    return NetworkEvent(
-        event_id=str(uuid4()),
-        timestamp=timestamp,
-        src_ip=str(network_layer.src),
-        dest_ip=str(network_layer.dst),
-        protocol=protocol,
-        source_port=source_port,
-        destination_port=destination_port,
-        payload_size=payload_size,
-    )
