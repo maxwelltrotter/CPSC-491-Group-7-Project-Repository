@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -24,12 +25,16 @@ class MockIDSService(IDSService):
         }
     )
     _SUPPORTED_SEVERITIES = frozenset({"Normal", "Low", "Medium", "High"})
+    _REVIEW_DISPOSITIONS = frozenset(
+        {"Confirmed incident", "False positive", "Needs investigation"}
+    )
 
     def __init__(self, data_path: str | Path | None = None) -> None:
         if data_path is None:
             data_path = Path(__file__).resolve().parent.parent / "data" / "sample_alerts.json"
         self._data_path = Path(data_path)
         self._alerts = self._load_alerts()
+        self._alert_reviews: list[dict[str, Any]] = []
         self._banned_ips: list[dict[str, Any]] = [
             {
                 "ip_address": "198.51.100.42",
@@ -93,6 +98,62 @@ class MockIDSService(IDSService):
 
     def get_alerts(self) -> list[dict[str, Any]]:
         return deepcopy(self._alerts)
+
+    def get_alert_reviews(self) -> list[dict[str, Any]]:
+        return deepcopy(self._alert_reviews)
+
+    def export_alert_reviews(self, destination: str | Path) -> Path:
+        """Export current mock review records as a clearly labeled evidence file."""
+        export_path = Path(destination)
+        payload = {
+            "data_source": "Mock/Synthetic",
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "persistence_note": "Exported review records are not tamper-resistant audit logs.",
+            "reviews": self.get_alert_reviews(),
+        }
+        export_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return export_path
+
+    def review_alert(
+        self,
+        alert_id: str,
+        disposition: str,
+        reason: str,
+        reviewer: str,
+        next_action: str = "",
+        owner: str = "",
+    ) -> dict[str, Any]:
+        if not any(alert["alert_id"] == alert_id for alert in self._alerts):
+            raise ValueError(f"unknown alert ID: {alert_id}")
+        if disposition not in self._REVIEW_DISPOSITIONS:
+            raise ValueError(f"unsupported alert disposition: {disposition}")
+        if not reason.strip():
+            raise ValueError("review reason is required")
+        if not reviewer.strip():
+            raise ValueError("reviewer is required")
+
+        requires_follow_up = disposition in {
+            "Confirmed incident",
+            "Needs investigation",
+        }
+        if requires_follow_up and not next_action.strip():
+            raise ValueError("next action is required for this disposition")
+        if requires_follow_up and not owner.strip():
+            raise ValueError("follow-up owner is required for this disposition")
+
+        review = {
+            "alert_id": alert_id,
+            "disposition": disposition,
+            "reason": reason.strip(),
+            "reviewer": reviewer.strip(),
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "next_action": next_action.strip(),
+            "owner": owner.strip(),
+            "status": "Closed" if disposition == "False positive" else "Open",
+            "data_source": "Mock/Synthetic",
+        }
+        self._alert_reviews.append(review)
+        return deepcopy(review)
 
     def get_logs(self) -> list[dict[str, Any]]:
         return [

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 
@@ -18,6 +19,26 @@ class IDSService(ABC):
     @abstractmethod
     def get_alerts(self) -> list[dict[str, Any]]:
         """Return alert records for presentation."""
+
+    @abstractmethod
+    def get_alert_reviews(self) -> list[dict[str, Any]]:
+        """Return mock or backend-provided alert review records."""
+
+    @abstractmethod
+    def review_alert(
+        self,
+        alert_id: str,
+        disposition: str,
+        reason: str,
+        reviewer: str,
+        next_action: str = "",
+        owner: str = "",
+    ) -> dict[str, Any]:
+        """Record an alert disposition and its required follow-up details."""
+
+    @abstractmethod
+    def export_alert_reviews(self, destination: str | Path) -> Path:
+        """Export review evidence to a user-selected destination."""
 
     @abstractmethod
     def get_logs(self) -> list[dict[str, Any]]:

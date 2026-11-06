@@ -4,9 +4,15 @@ import json
 import tempfile
 import unittest
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 from frontend.services.mock_ids_service import MockIDSService
+
+
+def workspace_temporary_directory() -> tempfile.TemporaryDirectory:
+    """Create temporary test data inside the writable repository workspace."""
+    return tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[2])
 
 
 class MockIDSServiceTests(unittest.TestCase):
@@ -30,6 +36,133 @@ class MockIDSServiceTests(unittest.TestCase):
 
         for alert in alerts:
             self.assertTrue(required_fields.issubset(alert.keys()))
+
+    def test_review_alert_records_follow_up_in_review_history(self) -> None:
+        alert_id = self.service.get_alerts()[0]["alert_id"]
+
+        review = self.service.review_alert(
+            alert_id=alert_id,
+            disposition="Needs investigation",
+            reason="The sample event needs a second review.",
+            reviewer="Terry Li",
+            next_action="Compare with related sample logs.",
+            owner="Frontend reviewer",
+        )
+
+        self.assertEqual(review["alert_id"], alert_id)
+        self.assertEqual(review["status"], "Open")
+        self.assertEqual(review["data_source"], "Mock/Synthetic")
+        self.assertTrue(review["reviewed_at"])
+        self.assertEqual(self.service.get_alert_reviews(), [review])
+
+    def test_false_positive_review_record_is_closed_without_follow_up(self) -> None:
+        alert_id = self.service.get_alerts()[0]["alert_id"]
+
+        review = self.service.review_alert(
+            alert_id=alert_id,
+            disposition="False positive",
+            reason="This fixture is used as a false-positive exercise.",
+            reviewer="Terry Li",
+        )
+
+        self.assertEqual(review["status"], "Closed")
+        self.assertEqual(review["next_action"], "")
+        self.assertEqual(review["owner"], "")
+
+    def test_review_is_a_mock_audit_record_and_does_not_change_alert_state(self) -> None:
+        alerts_before = self.service.get_alerts()
+        summary_before = self.service.get_dashboard_summary()
+        alert_id = alerts_before[0]["alert_id"]
+
+        review = self.service.review_alert(
+            alert_id=alert_id,
+            disposition="Confirmed incident",
+            reason="Synthetic alert retained for investigation.",
+            reviewer="Test reviewer",
+            next_action="Inspect related mock logs.",
+            owner="Test owner",
+        )
+
+        timestamp = datetime.fromisoformat(review["reviewed_at"])
+        self.assertEqual(timestamp.utcoffset(), timezone.utc.utcoffset(timestamp))
+        self.assertEqual(review["status"], "Open")
+        self.assertEqual(review["data_source"], "Mock/Synthetic")
+        self.assertEqual(self.service.get_alerts(), alerts_before)
+        self.assertEqual(self.service.get_dashboard_summary(), summary_before)
+
+    def test_review_alert_rejects_missing_required_review_information(self) -> None:
+        alert_id = self.service.get_alerts()[0]["alert_id"]
+        invalid_reviews = (
+            {"reason": "   ", "reviewer": "Terry Li"},
+            {"reason": "Needs follow-up.", "reviewer": "Terry Li"},
+            {
+                "reason": "Needs follow-up.",
+                "reviewer": "Terry Li",
+                "next_action": "Review logs.",
+            },
+        )
+
+        for fields in invalid_reviews:
+            with self.subTest(fields=fields):
+                with self.assertRaises(ValueError):
+                    self.service.review_alert(
+                        alert_id=alert_id,
+                        disposition="Needs investigation",
+                        **fields,
+                    )
+
+        self.assertEqual(self.service.get_alert_reviews(), [])
+
+    def test_review_alert_rejects_unknown_alert_and_disposition(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unknown alert ID"):
+            self.service.review_alert(
+                "ALT-UNKNOWN", "False positive", "Reason", "Terry Li"
+            )
+
+        alert_id = self.service.get_alerts()[0]["alert_id"]
+        with self.assertRaisesRegex(ValueError, "unsupported alert disposition"):
+            self.service.review_alert(
+                alert_id, "Ignore", "Reason", "Terry Li"
+            )
+
+    def test_alert_review_history_returns_defensive_copies(self) -> None:
+        alert_id = self.service.get_alerts()[0]["alert_id"]
+        self.service.review_alert(
+            alert_id,
+            "False positive",
+            "Synthetic exercise.",
+            "Terry Li",
+        )
+
+        reviews = self.service.get_alert_reviews()
+        reviews[0]["reason"] = "Changed outside the service"
+
+        self.assertEqual(
+            self.service.get_alert_reviews()[0]["reason"], "Synthetic exercise."
+        )
+
+    def test_exported_review_history_is_labeled_and_contains_review_records(self) -> None:
+        alert_id = self.service.get_alerts()[0]["alert_id"]
+        review = self.service.review_alert(
+            alert_id,
+            "Needs investigation",
+            "Synthetic alert needs a follow-up check.",
+            "Test reviewer",
+            next_action="Compare related logs.",
+            owner="Test owner",
+        )
+
+        with workspace_temporary_directory() as temporary_directory:
+            destination = Path(temporary_directory) / "review-evidence.json"
+            returned_path = self.service.export_alert_reviews(destination)
+            exported = json.loads(destination.read_text(encoding="utf-8"))
+
+        timestamp = datetime.fromisoformat(exported["exported_at"])
+        self.assertEqual(returned_path, destination)
+        self.assertEqual(timestamp.utcoffset(), timezone.utc.utcoffset(timestamp))
+        self.assertEqual(exported["data_source"], "Mock/Synthetic")
+        self.assertIn("not tamper-resistant", exported["persistence_note"])
+        self.assertEqual(exported["reviews"], [review])
 
     def test_alert_severity_values_are_supported(self) -> None:
         supported_severities = {"Normal", "Low", "Medium", "High"}
@@ -138,7 +271,7 @@ class MockIDSServiceTests(unittest.TestCase):
         )
 
     def test_rejects_alert_file_with_non_list_top_level(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
+        with workspace_temporary_directory() as temporary_directory:
             data_path = Path(temporary_directory) / "alerts.json"
             data_path.write_text(json.dumps({"alerts": []}), encoding="utf-8")
 
@@ -146,7 +279,7 @@ class MockIDSServiceTests(unittest.TestCase):
                 MockIDSService(data_path)
 
     def test_empty_alert_file_produces_empty_frontend_state(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
+        with workspace_temporary_directory() as temporary_directory:
             data_path = Path(temporary_directory) / "alerts.json"
             data_path.write_text("[]", encoding="utf-8")
 
@@ -161,7 +294,7 @@ class MockIDSServiceTests(unittest.TestCase):
             )
 
     def test_rejects_malformed_alert_json(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
+        with workspace_temporary_directory() as temporary_directory:
             data_path = Path(temporary_directory) / "alerts.json"
             data_path.write_text('[{"alert_id": "A-1"}', encoding="utf-8")
 
@@ -169,7 +302,7 @@ class MockIDSServiceTests(unittest.TestCase):
                 MockIDSService(data_path)
 
     def test_rejects_alert_entries_missing_required_fields(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
+        with workspace_temporary_directory() as temporary_directory:
             data_path = Path(temporary_directory) / "alerts.json"
             data_path.write_text(json.dumps([{"alert_id": "A-1"}]), encoding="utf-8")
 
@@ -184,7 +317,7 @@ class MockIDSServiceTests(unittest.TestCase):
             ("confidence", True, "confidence must be a number between 0 and 1"),
         )
 
-        with tempfile.TemporaryDirectory() as temporary_directory:
+        with workspace_temporary_directory() as temporary_directory:
             data_path = Path(temporary_directory) / "alerts.json"
 
             for field, value, expected_message in invalid_values:
