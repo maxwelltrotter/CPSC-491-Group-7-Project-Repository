@@ -7,6 +7,7 @@ from .services.ids_service import IDSService
 
 
 class AlertsFrame(ttk.Frame):
+    _ALERT_SOURCE_LABEL = "Source: Mock/Synthetic | Backend integration not verified"
     _REVIEW_DISPOSITIONS = (
         "Confirmed incident",
         "False positive",
@@ -20,8 +21,14 @@ class AlertsFrame(ttk.Frame):
         self.rowconfigure(1, weight=1)
         self.rowconfigure(3, weight=1)
 
-        ttk.Label(self, text="Alerts", font=("TkDefaultFont", 18, "bold")).grid(
-            row=0, column=0, sticky="w", pady=(0, 12)
+        header = ttk.Frame(self)
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        header.columnconfigure(1, weight=1)
+        ttk.Label(header, text="Alerts", font=("TkDefaultFont", 18, "bold")).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(header, text=self._ALERT_SOURCE_LABEL).grid(
+            row=0, column=1, sticky="e"
         )
 
         columns = ("timestamp", "source_ip", "threat_type", "severity", "confidence")
