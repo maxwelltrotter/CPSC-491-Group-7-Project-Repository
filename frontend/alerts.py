@@ -178,6 +178,7 @@ class AlertsFrame(ttk.Frame):
     def _save_review(self) -> None:
         selected = self.tree.selection()
         if not selected:
+            self.review_status_var.set("Review not saved")
             messagebox.showerror(
                 "Review not saved", "Select an alert before saving a review.", parent=self
             )
