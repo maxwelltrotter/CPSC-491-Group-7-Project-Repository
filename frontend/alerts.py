@@ -219,6 +219,7 @@ class AlertsFrame(ttk.Frame):
             initialfile="mock_alert_review_history.json",
         )
         if not destination:
+            self.review_status_var.set("Review history export cancelled")
             return
 
         try:
