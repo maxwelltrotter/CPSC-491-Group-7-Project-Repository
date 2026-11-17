@@ -152,6 +152,7 @@ class AlertsFrame(ttk.Frame):
                     confidence_text,
                 ),
             )
+        self.selected_alert_var.set("No alert selected")
         self._refresh_review_history()
 
     def _on_alert_selected(self, _event: tk.Event[tk.Misc]) -> None:

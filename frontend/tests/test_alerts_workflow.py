@@ -12,6 +12,8 @@ from unittest.mock import patch
 import pytest
 
 from frontend.alerts import AlertsFrame
+from frontend.dashboard import DashboardFrame
+from frontend.log_history import LogHistoryFrame
 from frontend.services.mock_ids_service import MockIDSService
 
 
@@ -39,9 +41,20 @@ class FakeTree:
 
     def delete(self, item: str) -> None:
         del self.rows[item]
+        self.selected = tuple(selected for selected in self.selected if selected != item)
 
-    def insert(self, _parent: str, _position: str, *, iid: str, values: tuple) -> None:
-        self.rows[iid] = values
+    def insert(
+        self, _parent: str, _position: str, *, values: tuple, iid: str | None = None
+    ) -> None:
+        self.rows[iid or f"row-{len(self.rows)}"] = values
+
+
+class FakeLabel:
+    def __init__(self) -> None:
+        self.text = ""
+
+    def configure(self, *, text: str) -> None:
+        self.text = text
 
 
 def review_screen() -> SimpleNamespace:
@@ -235,3 +248,43 @@ def test_export_multiple_reviews_matches_history_and_is_labeled() -> None:
     assert "not tamper-resistant" in exported["persistence_note"]
     assert datetime.fromisoformat(exported["exported_at"]).utcoffset() == timedelta(0)
     assert state.service.get_alert_reviews() == reviews_before
+
+
+def test_review_preserves_visible_dashboard_alerts_and_log_history() -> None:
+    state = review_screen()
+    dashboard = SimpleNamespace(service=state.service, summary_label=FakeLabel())
+    log_history = SimpleNamespace(service=state.service, tree=FakeTree())
+    DashboardFrame.refresh(dashboard)
+    LogHistoryFrame.refresh(log_history)
+    AlertsFrame.refresh(state)
+    dashboard_before = dashboard.summary_label.text
+    logs_before = dict(log_history.tree.rows)
+    alerts_before = dict(state.tree.rows)
+    source_alerts_before = state.service.get_alerts()
+
+    state.tree.selected = (source_alerts_before[0]["alert_id"],)
+    AlertsFrame._save_review(state)
+    DashboardFrame.refresh(dashboard)
+    LogHistoryFrame.refresh(log_history)
+    AlertsFrame.refresh(state)
+
+    assert len(state.service.get_alert_reviews()) == 1
+    assert dashboard.summary_label.text == dashboard_before
+    assert "Active alerts: 3" in dashboard.summary_label.text
+    assert log_history.tree.rows == logs_before
+    assert state.tree.rows == alerts_before
+    assert state.service.get_alerts() == source_alerts_before
+
+
+def test_alerts_refresh_clears_stale_selected_id_after_navigation() -> None:
+    state = review_screen()
+    AlertsFrame.refresh(state)
+    alert_id = state.service.get_alerts()[0]["alert_id"]
+    state.tree.selected = (alert_id,)
+    AlertsFrame._on_alert_selected(state, None)
+    assert state.selected_alert_var.get() == alert_id
+
+    AlertsFrame.refresh(state)
+
+    assert state.tree.selection() == ()
+    assert state.selected_alert_var.get() == "No alert selected"
