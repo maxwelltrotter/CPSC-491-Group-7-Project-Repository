@@ -152,6 +152,7 @@ class AlertsFrame(ttk.Frame):
                     confidence_text,
                 ),
             )
+        self.selected_alert_var.set("No alert selected")
         self._refresh_review_history()
 
     def _on_alert_selected(self, _event: tk.Event[tk.Misc]) -> None:
@@ -178,6 +179,7 @@ class AlertsFrame(ttk.Frame):
     def _save_review(self) -> None:
         selected = self.tree.selection()
         if not selected:
+            self.review_status_var.set("Review not saved")
             messagebox.showerror(
                 "Review not saved", "Select an alert before saving a review.", parent=self
             )
@@ -218,6 +220,7 @@ class AlertsFrame(ttk.Frame):
             initialfile="mock_alert_review_history.json",
         )
         if not destination:
+            self.review_status_var.set("Review history export cancelled")
             return
 
         try:
